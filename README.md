@@ -2,6 +2,8 @@
 
 > Metronome, Groove, Tuner, and a practice Log in one focused, beautiful tool you actually open every day.
 
+**🔗 Live: https://digidand.github.io/pulse/** · installable as a PWA (Add to Home Screen).
+
 A vanilla HTML/CSS/JS web app (no framework, no build step). All audio is synthesized or sample-driven via the Web Audio API. Mobile-first, dark theme, single column.
 
 ---
@@ -87,11 +89,18 @@ python -m http.server 8766
 - Expert-council fixes: tuner mic-permission UX, Space-after-click, unified accent color, dropdown keyboard a11y, Log reliability (min-session / module-change / try-catch), Log token + visibility fixes.
 - Design system: Inter + type scale, unified hero numeral, glow discipline, 44px touch targets, sticky transport, Rhythm reading-order.
 - **Branding rollout** (per `BRAND.md`): PULSE wordmark + Pulse Mark in header; new favicon; tab `Rhythm Buddy → Groove`; fake "Pro" badges removed; `<title>` updated; Log voice/microcopy (Groove module name, empty-state copy).
+- **Logo asset package:** SVG masters, favicon, PWA icons (192/512), apple-touch-icon, `manifest.json`.
+- **Deployed:** dedicated repo `DigidanD/pulse`, GitHub Pages from `main` (`.nojekyll`), live at https://digidand.github.io/pulse/.
 
 **Deferred (minor)**
 - Card the metronome visualizer to match Groove's.
 - Tuner lock-beep mic-feedback guard; `frozenLocked` logic; `setPatternIndex` parity.
+- Optional: custom domain (e.g. `pulse.digidan.co.il`), OG/social share image.
 
 ---
 
-*Working branch: `fix/qa-full-app`.*
+## Deploy
+
+- **Repo:** `DigidanD/pulse` · **branch:** `main` · **Pages:** `main` / root, static (`.nojekyll`).
+- Push to `main` → GitHub Pages rebuilds → live at https://digidand.github.io/pulse/ within ~1–2 min.
+- Local canonical clone: `C:\Projects\pulse`.

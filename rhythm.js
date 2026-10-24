@@ -346,17 +346,31 @@
   const sampleBuffers = Object.create(null);
   let   samplesLoading = false;
 
+  let samplesPromise = null;
+
+  // Fetch + decode every drum sample once. Resolves when all have either
+  // loaded or failed (a failed drum just keeps its synth fallback).
   function loadSamples() {
-    if (samplesLoading) return;
+    if (samplesPromise) return samplesPromise;
     samplesLoading = true;
     const ctx = getCtx();
-    Object.entries(SAMPLE_FILES).forEach(([name, file]) => {
+    samplesPromise = Promise.all(Object.entries(SAMPLE_FILES).map(([name, file]) =>
       fetch(SAMPLE_BASE + file)
         .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
         .then(buf => new Promise((res, rej) => ctx.decodeAudioData(buf, res, rej)))
         .then(decoded => { sampleBuffers[name] = decoded; })
-        .catch(() => { /* leave unset → that drum uses synth fallback */ });
-    });
+        .catch(() => { /* leave unset → that drum uses synth fallback */ })
+    ));
+    return samplesPromise;
+  }
+
+  // Wait for the kit before the first bar so the groove never switches from
+  // synth to samples mid-play. Capped so a slow network can't block START.
+  function samplesReady(maxMs) {
+    return Promise.race([
+      loadSamples(),
+      new Promise(res => setTimeout(res, maxMs)),
+    ]);
   }
 
   // Play a decoded sample. Returns false if not yet available (caller then
@@ -705,7 +719,6 @@
   function startRhythm() {
     const ctx = getCtx();
     ctx.resume();
-    loadSamples();   // kick off acoustic-sample loading (idempotent; synth until ready)
     rb.isPlaying        = true;
     rb.currentStep      = 0;
     rb.nextStepTime     = ctx.currentTime + 0.05;
@@ -716,7 +729,12 @@
     rb.countInBeat      = rb.pattern.beatsPerBar || 4;
     rb.countInRemaining = rb.countInBeat;
 
-    rb.timerID = setInterval(scheduler, SCHED_INTVAL);
+    if (rb.timerID) rb.timerID.stop();
+    rb.timerID = window.createPulseTicker
+      ? window.createPulseTicker(scheduler, SCHED_INTVAL)
+      : (id => ({ stop: () => clearInterval(id) }))(setInterval(scheduler, SCHED_INTVAL));
+    scheduler();
+    window.pulseWakeLock?.acquire();
     if (!rb.rafRunning) { rb.rafRunning = true; requestAnimationFrame(rafLoop); }
   }
 
@@ -724,9 +742,10 @@
     rb.isPlaying        = false;
     rb.countInRemaining = 0;
     rb.crashPending     = false;
-    clearInterval(rb.timerID);
+    if (rb.timerID) rb.timerID.stop();
     rb.timerID          = null;
     rb.pendingFlashes   = [];
+    window.pulseWakeLock?.release();
     clearStepVisuals();
     updatePlayBtn(false);
     hideCountIn();
@@ -738,7 +757,8 @@
   function rafLoop() {
     if (!window.getSharedAudioCtx) { rb.rafRunning = false; return; }
     const ctx = getCtx();
-    const now = ctx.currentTime;
+    // Light the step when it is heard (output/Bluetooth latency compensated).
+    const now = ctx.currentTime - (window.getOutputLatency ? window.getOutputLatency(ctx) : 0);
 
     rb.pendingFlashes = rb.pendingFlashes.filter(flash => {
       if (flash.time <= now) {
@@ -1025,16 +1045,30 @@
   });
 
   // Play button
-  document.getElementById('rb-play-btn').addEventListener('click', () => {
+  let rbStarting = false;
+  document.getElementById('rb-play-btn').addEventListener('click', async () => {
+    if (rbStarting) return;
     if (rb.isPlaying) {
       stopRhythm();
-    } else {
-      rb.bpm = window.metronome ? window.metronome.getBpm() :
-        (Number(document.getElementById('bpm-input').value) || 120);
-      startRhythm();
-      updatePlayBtn(true);
+      return;
     }
+    rb.bpm = window.metronome ? window.metronome.getBpm() :
+      (Number(document.getElementById('bpm-input').value) || 120);
+    // Resume inside the tap itself (iOS only unlocks audio in a user gesture),
+    // then give the drum kit a moment to finish loading.
+    getCtx().resume();
+    if (window.metronome?.isPlaying()) document.getElementById('play-pause-btn')?.click();
+    rbStarting = true;
+    const label = document.querySelector('#rb-play-btn .btn-label');
+    if (label && Object.keys(sampleBuffers).length === 0) label.textContent = 'LOADING…';
+    await samplesReady(1500);
+    rbStarting = false;
+    startRhythm();
+    updatePlayBtn(true);
   });
+
+  // Preload the kit as soon as the Groove tab is opened.
+  document.querySelector('.tab-btn[data-tab="rhythm"]')?.addEventListener('click', () => { loadSamples(); });
 
   // Tap tempo in Rhythm Buddy (delegates to shared metronome API)
   const rbTapBtn = document.getElementById('rb-tap-btn');
@@ -1118,13 +1152,8 @@
   }
 
   // Volume
-  document.getElementById('rb-volume').addEventListener('input', e => {
-    rb.volume = Number(e.target.value) / 100;
-    const pct = e.target.value + '%';
-    e.target.style.setProperty('--slider-pct', pct);
-    const lbl = document.getElementById('rb-volume-label');
-    if (lbl) lbl.textContent = e.target.value + '%';
-  });
+  // Volume: the Groove tab shows the shared master volume (wired in
+  // metronome.js). rb.volume stays as the kit's internal mix level.
 
   /* ─────────────────────────────────────────────
      Init
@@ -1152,16 +1181,7 @@
     getPatternName: () => rb.pattern?.name ?? null,
     getBpm:    () => rb.bpm,
     getVolume: () => rb.volume,
-    setVolume: (v) => {
-      rb.volume = v;
-      const slider = document.getElementById('rb-volume');
-      if (slider) {
-        slider.value = Math.round(v * 100);
-        slider.style.setProperty('--slider-pct', Math.round(v * 100) + '%');
-        const lbl = document.getElementById('rb-volume-label');
-        if (lbl) lbl.textContent = Math.round(v * 100) + '%';
-      }
-    },
+    setVolume: (v) => { if (v > 0 && v <= 1) rb.volume = v; },
   };
 
 })();

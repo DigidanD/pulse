@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pulse — The musician's toolbox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Pulse — Metronome, Drum Grooves, Guitar Tuner &amp; Practice Log</title>
+  <meta name="description" content="Free online metronome, drum groove player, guitar &amp; bass tuner and practice log in one app. Works offline, no sign-up." />
   <meta name="theme-color" content="#0b0b10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Pulse" />
   <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
@@ -16,7 +20,7 @@
 <body>
 
   <div id="audio-error" class="audio-toast" style="display:none">
-    ⚠️ Web Audio API not supported. Please use Chrome or Firefox.
+    Web Audio isn’t supported in this browser. Please use Chrome, Safari or Firefox.
     <button class="audio-toast-close" aria-label="Dismiss" onclick="this.parentElement.style.display='none'">✕</button>
   </div>
   <div id="screen-flash" class="screen-flash"></div>
@@ -24,7 +28,7 @@
 
   <div class="app">
 
-    <!-- Header -->
+    <!-- Header: brand mark + tabs on one row -->
     <header class="app-header">
       <h1 class="app-title">
         <svg class="brand-mark" viewBox="0 0 120 100" aria-hidden="true">
@@ -40,52 +44,53 @@
           </g>
           <rect x="56" y="9" width="8" height="82" rx="4" fill="#f76a6a"/>
         </svg>
-        <span>PULSE</span>
+        <span class="sr-only">Pulse</span>
       </h1>
-      <div class="header-timer" id="header-timer-wrap" style="display:none">
-        <span id="timer-display" class="timer-time">--:--</span>
-        <span class="timer-label">remaining</span>
-      </div>
+      <nav class="tab-nav" role="tablist" aria-label="Tools">
+        <button class="tab-btn active" data-tab="metronome" role="tab" aria-selected="true">Metronome</button>
+        <button class="tab-btn" data-tab="rhythm" role="tab" aria-selected="false">Groove</button>
+        <button class="tab-btn" data-tab="tuner" role="tab" aria-selected="false">Tuner</button>
+        <button class="tab-btn" data-tab="log" role="tab" aria-selected="false">Log</button>
+      </nav>
     </header>
-
-    <!-- Tab Navigation -->
-    <nav class="tab-nav" role="tablist">
-      <button class="tab-btn active" data-tab="metronome" role="tab">Metronome</button>
-      <button class="tab-btn" data-tab="rhythm" role="tab">Groove</button>
-      <button class="tab-btn" data-tab="tuner" role="tab">Tuner</button>
-      <button class="tab-btn" data-tab="log" role="tab">Log</button>
-    </nav>
 
     <!-- ══════════════════════════════
          METRONOME TAB
     ══════════════════════════════ -->
-    <div id="tab-metronome" class="tab-panel active">
+    <div id="tab-metronome" class="tab-panel active" role="tabpanel">
 
-      <!-- Beat Visualizer -->
-      <section class="beat-vis-wrapper" aria-label="Beat indicators">
-        <div class="beat-visualizer" id="beat-visualizer"></div>
+      <!-- Beats -->
+      <section class="beat-vis-wrapper beat-card" aria-label="Beats">
+        <div class="beat-row">
+          <button class="icon-btn btn-flash-toggle" id="flash-toggle" aria-label="Screen flash" title="Screen flash">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </button>
+          <div class="beat-visualizer" id="beat-visualizer"></div>
+          <button class="icon-btn btn-save" id="save-btn" aria-label="Save preset" title="Save preset">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          </button>
+        </div>
         <div class="bar-progress-track">
           <div class="bar-progress-fill" id="bar-progress-fill"></div>
         </div>
-        <div class="accent-hint">Tap a beat dot to cycle: normal &#8594; accent &#8594; silent</div>
-        <div class="beat-util-row">
-          <button class="btn-save" id="save-btn" title="Save all settings">&#128190; Save Preset</button>
-          <button class="btn-flash-toggle" id="flash-toggle" title="Toggle screen flash">&#9889; Screen Flash</button>
+        <div class="header-timer" id="header-timer-wrap" style="display:none">
+          <span id="timer-display" class="timer-time">--:--</span>
+          <span class="timer-label">left</span>
         </div>
-        <div class="save-toast" id="save-toast" style="display:none">Saved &#10003;</div>
+        <div class="save-toast" id="save-toast" style="display:none">Saved ✓</div>
         <div class="count-in-display" id="count-in-display">
           <div class="count-in-num" id="count-in-num"></div>
         </div>
         <div class="bar-break-indicator" id="bar-break-indicator">SILENT BAR</div>
       </section>
 
-      <!-- BPM Section -->
-      <section class="bpm-section">
+      <!-- Tempo -->
+      <section class="bpm-section" aria-label="Tempo">
         <div class="bpm-display">
           <button class="bpm-nudge" id="bpm-down" aria-label="Decrease BPM">&#8722;</button>
           <div class="bpm-value-group">
             <input type="number" id="bpm-input" class="bpm-number"
-                   min="40" max="240" value="120" aria-label="BPM value" />
+                   min="30" max="240" value="120" inputmode="numeric" aria-label="BPM value" />
             <span class="bpm-label">BPM</span>
           </div>
           <button class="bpm-nudge" id="bpm-up" aria-label="Increase BPM">+</button>
@@ -96,41 +101,20 @@
           <button class="bpm-preset" data-bpm="100">100</button>
           <button class="bpm-preset" data-bpm="120">120</button>
           <button class="bpm-preset" data-bpm="140">140</button>
-          <button class="bpm-preset" data-bpm="160">160</button>
+          <button class="btn-tap" id="tap-tempo-btn" aria-label="Tap tempo">TAP</button>
         </div>
         <input type="range" id="bpm-slider" class="bpm-slider"
-               min="40" max="240" value="120" aria-label="BPM slider" />
-        <div class="bpm-range-labels"><span>40</span><span>240</span></div>
+               min="30" max="240" value="120" aria-label="BPM slider" />
       </section>
 
-      <!-- Volume + Count-In row -->
-      <div class="vol-row">
-        <span class="vol-icon">&#128266;</span>
-        <input type="range" id="master-volume" class="bpm-slider vol-slider"
-               min="0" max="100" value="80" aria-label="Master volume"
-               style="--slider-pct:80%" />
-        <span class="volume-value" id="master-volume-label">80%</span>
-        <button class="pill-toggle" id="count-in-pill" aria-pressed="true">Count-in</button>
-      </div>
-
-      <!-- Play / Tap -->
-      <section class="action-section">
-        <button class="btn-tap" id="tap-tempo-btn" aria-label="Tap tempo">TAP</button>
-        <button class="btn-play" id="play-pause-btn" aria-label="Start metronome">
-          <span class="play-icon">&#9654;</span>
-          <span class="pause-icon" style="display:none">&#9646;&#9646;</span>
-          <span class="btn-label">START</span>
-        </button>
-      </section>
-
-      <!-- ── Controls: 4 compact dropdown selectors ── -->
+      <!-- Settings -->
       <div class="ctrl-bar ctrl-bar--4">
 
         <!-- Note Value -->
         <div class="ctrl-sel" id="note-sel">
           <button class="ctrl-trigger" id="note-trigger" aria-haspopup="listbox">
             <span class="ctrl-trigger-val" id="note-val">&#9833;</span>
-            <span class="ctrl-trigger-label">NOTE</span>
+            <span class="ctrl-trigger-label">Note</span>
             <span class="ctrl-trigger-arrow"></span>
           </button>
           <div class="ctrl-sel-panel" id="note-group" role="listbox" aria-label="Note value">
@@ -146,7 +130,7 @@
         <div class="ctrl-sel" id="timesig-sel">
           <button class="ctrl-trigger" id="timesig-trigger" aria-haspopup="listbox">
             <span class="ctrl-trigger-val" id="timesig-val">4/4</span>
-            <span class="ctrl-trigger-label">TIME</span>
+            <span class="ctrl-trigger-label">Time</span>
             <span class="ctrl-trigger-arrow"></span>
           </button>
           <div class="ctrl-sel-panel" id="timesig-group" role="listbox" aria-label="Time signature">
@@ -163,7 +147,7 @@
         <div class="ctrl-sel" id="sound-sel">
           <button class="ctrl-trigger" id="sound-trigger" aria-haspopup="listbox">
             <span class="ctrl-trigger-val" id="sound-val">Beep</span>
-            <span class="ctrl-trigger-label">SOUND</span>
+            <span class="ctrl-trigger-label">Sound</span>
             <span class="ctrl-trigger-arrow"></span>
           </button>
           <div class="ctrl-sel-panel" id="sound-group" role="listbox" aria-label="Sound type">
@@ -179,8 +163,8 @@
         <!-- Accent -->
         <div class="ctrl-sel" id="accent-sel">
           <button class="ctrl-trigger" id="accent-trigger" aria-haspopup="listbox">
-            <span class="ctrl-trigger-val" id="accent-val">1</span>
-            <span class="ctrl-trigger-label">ACCENT</span>
+            <span class="ctrl-trigger-val" id="accent-val">Beat 1</span>
+            <span class="ctrl-trigger-label">Accent</span>
             <span class="ctrl-trigger-arrow"></span>
           </button>
           <div class="ctrl-sel-panel" id="accent-group" role="listbox" aria-label="Accent pattern">
@@ -194,28 +178,27 @@
 
       </div><!-- /.ctrl-bar -->
 
-      <!-- ── Feature Pills + Panels ── -->
+      <!-- Practice tools -->
       <div class="feat-section">
-
         <div class="feat-pills">
-          <button class="feat-pill" id="ramp-pill">Tempo Ramp</button>
-          <button class="feat-pill" id="gap-pill">Gap Mode</button>
-          <button class="feat-pill" id="bar-break-pill">Bar Break</button>
+          <button class="feat-pill" id="count-in-pill" aria-pressed="true">Count-in</button>
+          <button class="feat-pill" id="ramp-pill">Tempo ramp</button>
+          <button class="feat-pill" id="gap-pill">Gap mode</button>
+          <button class="feat-pill" id="bar-break-pill">Bar break</button>
           <button class="feat-pill" id="timer-pill">Timer</button>
         </div>
-
         <!-- Ramp panel -->
         <div class="feat-panel" id="ramp-controls">
           <div class="ramp-fields">
             <div class="ramp-field">
               <label for="ramp-start-bpm">From</label>
-              <input type="number" id="ramp-start-bpm" min="40" max="240" value="80" />
+              <input type="number" id="ramp-start-bpm" min="30" max="240" value="80" />
               <span>BPM</span>
             </div>
             <div class="ramp-arrow">&#8594;</div>
             <div class="ramp-field">
               <label for="ramp-end-bpm">To</label>
-              <input type="number" id="ramp-end-bpm" min="40" max="240" value="140" />
+              <input type="number" id="ramp-end-bpm" min="30" max="240" value="140" />
               <span>BPM</span>
             </div>
             <div class="ramp-field">
@@ -284,14 +267,30 @@
 
       </div><!-- /.feat-section -->
 
+      <!-- Volume -->
+      <div class="vol-row">
+        <svg class="vol-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+        <input type="range" id="master-volume" class="bpm-slider vol-slider"
+               min="0" max="100" value="80" aria-label="Volume"
+               style="--slider-pct:80%" />
+        <span class="volume-value" id="master-volume-label">80%</span>
+      </div>
+
+      <!-- Transport -->
+      <section class="action-section">
+        <button class="btn-play" id="play-pause-btn" aria-label="Start metronome">
+          <span class="play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></span>
+          <span class="pause-icon" aria-hidden="true" style="display:none"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span>
+          <span class="btn-label">START</span>
+        </button>
+      </section>
     </div><!-- /#tab-metronome -->
 
     <!-- ══════════════════════════════
-         RHYTHM BUDDY TAB
+         GROOVE TAB
     ══════════════════════════════ -->
-    <div id="tab-rhythm" class="tab-panel">
+    <div id="tab-rhythm" class="tab-panel" role="tabpanel">
 
-      <!-- Header: pattern name + BPM badge -->
       <div class="rhythm-header">
         <div class="rhythm-pattern-name" id="rhythm-pattern-name">Rock Basic</div>
         <div class="rhythm-pattern-cat" id="rhythm-pattern-cat">Rock</div>
@@ -302,7 +301,6 @@
         </div>
       </div>
 
-      <!-- Beat Visualizer -->
       <div class="rb-vis-wrapper">
         <div class="rb-step-track" id="rb-step-track"></div>
         <div class="rb-instr-rows" id="rb-instr-rows"></div>
@@ -311,7 +309,24 @@
         </div>
       </div>
 
-      <!-- Pattern picker (the primary task on this tab) -->
+      <!-- Feel + fills + ghosts: they shape the groove, so they sit with it -->
+      <div class="rb-bottom">
+        <div class="btn-group" id="feel-group" role="group" aria-label="Tempo feel">
+          <button class="seg-btn active" data-feel="straight">Straight</button>
+          <button class="seg-btn"        data-feel="shuffle">Shuffle</button>
+          <button class="seg-btn"        data-feel="swing">Swing</button>
+        </div>
+        <div class="rb-pills-row">
+          <button class="feat-pill" id="fills-pill">Auto-fills</button>
+          <div class="ghost-inline">
+            <label class="control-label" for="ghost-probability">Ghosts</label>
+            <input type="range" id="ghost-probability" class="bpm-slider vol-slider"
+                   min="0" max="50" value="13" style="--slider-pct:26%" />
+            <span class="slider-value-label" id="ghost-prob-label">13%</span>
+          </div>
+        </div>
+      </div>
+
       <div class="search-row">
         <input type="search" id="pattern-search" class="pattern-search-input"
                placeholder="Search patterns…" aria-label="Search patterns" />
@@ -320,106 +335,88 @@
       <div class="pattern-grid" id="pattern-grid"></div>
       <div class="empty-state" id="pattern-empty-state" style="display:none">No patterns found</div>
 
-      <!-- Feel + Options row -->
-      <div class="rb-bottom">
-
-        <div class="control-group">
-          <label class="control-label">Tempo Feel</label>
-          <div class="btn-group" id="feel-group">
-            <button class="seg-btn active" data-feel="straight">Straight</button>
-            <button class="seg-btn"        data-feel="shuffle">Shuffle</button>
-            <button class="seg-btn"        data-feel="swing">Swing</button>
-          </div>
-        </div>
-
-        <div class="rb-pills-row">
-          <button class="feat-pill" id="fills-pill">Auto-Fills</button>
-          <div class="ghost-inline">
-            <span class="control-label">Ghosts</span>
-            <input type="range" id="ghost-probability" class="bpm-slider vol-slider"
-                   min="0" max="50" value="13" style="--slider-pct:26%"
-                   aria-label="Ghost note probability" />
-            <span class="slider-value-label" id="ghost-prob-label">13%</span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Volume -->
       <div class="vol-row">
-        <span class="vol-icon">&#128266;</span>
+        <svg class="vol-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
         <input type="range" id="rb-volume" class="bpm-slider vol-slider"
                min="0" max="100" value="80" style="--slider-pct:80%"
-               aria-label="Rhythm volume" />
+               aria-label="Volume" />
         <span class="volume-value" id="rb-volume-label">80%</span>
       </div>
 
-      <!-- Transport (sticky — pins to viewport bottom) -->
-      <section class="action-section">
-        <button class="btn-tap" id="rb-tap-btn" aria-label="Tap tempo">TAP</button>
-        <button class="btn-play" id="rb-play-btn" aria-label="Start rhythm">
-          <span class="play-icon">&#9654;</span>
-          <span class="pause-icon" style="display:none">&#9646;&#9646;</span>
+      <!-- Transport (thin, pinned to the bottom) -->
+      <section class="action-section action-section--row">
+        <button class="btn-play" id="rb-play-btn" aria-label="Start groove">
+          <span class="play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></span>
+          <span class="pause-icon" aria-hidden="true" style="display:none"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span>
           <span class="btn-label">START</span>
         </button>
+        <button class="btn-tap btn-tap--side" id="rb-tap-btn" aria-label="Tap tempo">TAP</button>
       </section>
-
     </div><!-- /#tab-rhythm -->
 
     <!-- ══════════════════════════════
          TUNER TAB
     ══════════════════════════════ -->
-    <div id="tab-tuner" class="tab-panel">
+    <div id="tab-tuner" class="tab-panel" role="tabpanel">
 
-      <!-- Note display — same card style as the rest of the app -->
-      <section class="bpm-section tuner-display" id="tuner-display">
-        <div class="tuner-note-wrap">
+      <section class="tuner-hero" id="tuner-display" aria-label="Tuner">
+        <div class="tuner-top">
+          <div class="tuner-instr" id="tuner-instr" role="group" aria-label="Instrument">
+            <button data-instr="guitar" aria-pressed="true" class="active">Guitar</button>
+            <button data-instr="seven"  aria-pressed="false">7-string</button>
+            <button data-instr="bass"   aria-pressed="false">Bass</button>
+          </div>
+          <div class="tuner-ref" role="group" aria-label="Reference pitch">
+            <button id="tuner-a4-down" aria-label="Lower reference pitch">&#8722;</button>
+            <span class="tuner-ref-val">A4 <b id="tuner-a4-val">440</b></span>
+            <button id="tuner-a4-up" aria-label="Raise reference pitch">+</button>
+          </div>
+        </div>
+
+        <div class="tuner-note-wrap" aria-live="polite">
           <span class="tuner-note" id="tuner-note">—</span>
           <span class="tuner-octave" id="tuner-octave"></span>
         </div>
         <span class="tuner-freq" id="tuner-freq">— Hz</span>
-      </section>
 
-      <!-- Tuning bar card -->
-      <div class="bpm-section tuner-bar-card">
-
-        <!-- Gauge: cents float + track + scale -->
         <div class="tuner-gauge" id="tuner-gauge">
-          <div class="tuner-cents" id="tuner-cents">—</div>
+          <div class="tuner-cents" id="tuner-cents"></div>
           <div class="tuner-track-wrap">
-            <div class="tuner-track"></div>
-            <div class="tuner-track-center" aria-hidden="true"></div>
+            <div class="tuner-track" aria-hidden="true">
+              <span class="tuner-zone"></span>
+            </div>
             <div class="tuner-needle" id="tuner-needle"></div>
           </div>
           <div class="tuner-scale" aria-hidden="true">
-            <span>−50</span><span>−25</span><span>0</span><span>+25</span><span>+50</span>
+            <span>♭ −50</span><span>0</span><span>+50 ♯</span>
           </div>
         </div>
 
-        <!-- Lock badge -->
         <div class="tuner-lock" id="tuner-lock" aria-live="polite">&#10003;&nbsp;IN TUNE</div>
 
+        <div class="tuner-strings" id="tuner-strings" aria-label="Open strings"></div>
+      </section>
+
+      <div class="tuner-level" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+        <div class="tuner-level-track"><div class="tuner-level-fill" id="tuner-level-fill"></div></div>
       </div>
 
-      <!-- Start button — reuses btn-play from the rest of the app -->
       <section class="action-section">
         <button class="btn-play" id="tuner-start-btn" aria-label="Start tuner">
           <span class="btn-label">START</span>
         </button>
       </section>
 
-      <!-- Inline status / hint (mic permission, errors, first-run guidance) -->
       <div class="tuner-status" id="tuner-status" aria-live="polite">
         Tap START and play a single note.
       </div>
-
-
     </div><!-- /#tab-tuner -->
 
     <!-- ══════════════════════════════
          LOG TAB
     ══════════════════════════════ -->
-    <div id="tab-log" class="tab-panel">
+    <div id="tab-log" class="tab-panel" role="tabpanel">
       <!-- rendered by practice-log.js -->
     </div><!-- /#tab-log -->
 
@@ -429,5 +426,13 @@
   <script src="rhythm.js"></script>
   <script src="tuner.js"></script>
   <script src="practice-log.js"></script>
+  <script>
+    // Offline support (skipped on file:// where service workers can't run).
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

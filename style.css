@@ -1786,17 +1786,253 @@ body {
 
 @media (max-width: 420px) {
   body { padding: 16px 12px 40px; }
-  .app-title { font-size: 1.3rem; letter-spacing: 3px; }
-  .beat-dot { width: 40px; height: 40px; }
   .bpm-nudge { width: 48px; height: 48px; font-size: 1.4rem; }
   .bpm-nudge--sm { width: 40px; height: 40px; }
   .seg-btn { font-size: 0.82rem; padding: 8px 4px; }
-  .action-section { flex-direction: column; }
-  .btn-tap { width: 100%; padding: 18px; min-height: 64px; }
   .pattern-grid { max-height: 200px; grid-template-columns: 1fr 1fr; }
   .count-in-num { font-size: 3.8rem; }
-  .bpm-presets { gap: 4px; }
-  .bpm-preset { padding: 4px 8px; font-size: 0.68rem; }
+}
+
+
+
+
+/* ═══════════════════════════════════════════════════════
+   LAYOUT v2 — compact header, one-screen metronome,
+   thin transports, mobile polish
+═══════════════════════════════════════════════════════ */
+
+/* ── Mobile platform polish ── */
+html { -webkit-text-size-adjust: 100%; }
+button, .tab-btn, .beat-dot, input[type="range"] {
+  touch-action: manipulation;          /* no double-tap zoom on rapid TAPs */
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.app { gap: 12px; }
+.tab-panel { gap: 12px; }
+
+/* ── Header: mark + tabs on one row ── */
+.app-header {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding-top: 0;
+  text-align: left;
+}
+.app-title { flex-shrink: 0; font-size: 1.6rem; letter-spacing: 0; }
+.app-title .brand-mark { height: 1em; display: block; }
+.tab-nav { flex: 1; padding: 3px; gap: 2px; border-radius: 12px; }
+.tab-btn {
+  min-height: 40px;
+  padding: 6px 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 9px;
+}
+.tab-btn.active { color: var(--bg-app); font-weight: 700; }
+
+/* ── Beat card ── */
+.beat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 14px 12px;
+  min-height: 0;
+  gap: 12px;
+}
+.beat-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.beat-row .beat-visualizer { flex: 1; gap: 10px; flex-wrap: nowrap; }
+.beat-card .bar-progress-track { max-width: none; height: 4px; }
+
+.beat-dot {
+  width: 46px;
+  height: 46px;
+  flex: 0 1 46px;
+  min-width: 26px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  aspect-ratio: 1;
+  height: auto;
+}
+.beat-dot--accent { color: var(--beat1-color); border-width: 3px; border-color: var(--beat1-color); background: rgba(247,106,106,0.14); }
+.beat-dot--silent { color: transparent; }
+.beat-dot.active { color: var(--bg-app); }
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.icon-btn svg {
+  width: 17px; height: 17px;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.btn-flash-toggle { color: var(--accent); }
+.btn-flash-toggle.off { color: var(--text-muted); }
+.btn-flash-toggle.off svg { opacity: 0.5; }
+.icon-btn.btn-save { letter-spacing: 0; }
+
+/* Timer badge + toast float inside the beat card */
+.beat-card .header-timer {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 10px;
+  z-index: 5;
+}
+.beat-card .timer-time { font-size: 0.85rem; letter-spacing: 1px; }
+.beat-card .save-toast {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+/* ── Tempo card ── */
+.bpm-section { padding: 14px 16px; gap: 12px; }
+.bpm-display { justify-content: space-between; gap: 8px; }
+.bpm-number { width: 100%; max-width: 190px; font-weight: var(--fw-black); }
+.bpm-presets { flex-wrap: nowrap; gap: 6px; }
+.bpm-presets > * { flex: 1 1 0; min-width: 0; }
+.bpm-preset { padding: 0; min-height: 34px; font-size: 0.8rem; }
+.bpm-preset.active { color: var(--bg-app); }
+
+/* TAP as a secondary chip inside the presets row */
+.bpm-presets .btn-tap {
+  flex: 1.35 1 0;
+  width: auto;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.bpm-presets .btn-tap:active,
+.bpm-presets .btn-tap.tapped { background: var(--accent); color: var(--bg-app); }
+
+/* ── Settings tiles ── */
+.ctrl-bar--4 .ctrl-trigger { min-height: 58px; padding: 6px 4px; gap: 3px; }
+.ctrl-bar--4 .ctrl-trigger-val { font-size: 1rem; white-space: nowrap; }
+.ctrl-bar--4 .ctrl-trigger-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+.ctrl-bar--4 .ctrl-trigger-arrow { display: none; }
+/* Rightmost dropdown opens leftwards so it never clips off-screen */
+.ctrl-bar--4 .ctrl-sel:last-child .ctrl-sel-panel { left: auto; right: 0; }
+
+/* ── Practice-tool chips ── */
+.feat-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0;
+}
+.feat-pill {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+.feat-pill.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.feat-panel { border-radius: var(--radius-md); }
+.feat-panel.expanded { margin: 8px 0 0; border-top: 1.5px solid var(--accent); }
+
+/* ── Volume ── */
+.vol-row { padding: 6px 4px; background: none; border: none; }
+svg.vol-icon {
+  width: 18px; height: 18px;
+  fill: none; stroke: var(--text-secondary); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.volume-value { color: var(--text-secondary); font-size: 0.8rem; }
+
+/* ── Transport ── */
+.action-section {
+  bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 6px;
+  gap: 8px;
+}
+.btn-play {
+  min-height: 60px;
+  padding: 0 24px;
+  border-radius: 16px;
+  color: var(--bg-app);
+  font-weight: var(--fw-black);
+  letter-spacing: 2px;
+  box-shadow: 0 8px 28px rgba(240,144,16,0.32);
+}
+.btn-play.running { color: #fff; }
+.btn-play svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+.play-icon, .pause-icon { display: flex; }
+
+/* Groove: START + a narrow TAP on one thin row */
+.action-section--row .btn-tap--side {
+  flex: 0 0 84px;
+  width: 84px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 0.9rem;
+}
+
+/* ── Groove ── */
+.rhythm-header { gap: 2px; }
+#tab-rhythm .rb-bottom { gap: 10px; }
+#tab-rhythm .btn-group { width: 100%; }
+
+/* ── Reduced motion: no flashing / pulsing for people who ask for less ── */
+@media (prefers-reduced-motion: reduce) {
+  .screen-flash { display: none; }
+  .btn-play.running { animation: none; }
+  .beat-dot.active, .beat-dot.active.accent { animation-duration: 1ms; }
+  *, *::before, *::after { transition-duration: 1ms !important; }
+}
+
+@media (max-width: 360px) {
+  .tab-btn { font-size: 0.72rem; }
+  .beat-dot { flex-basis: 40px; }
 }
 
 
@@ -1804,331 +2040,361 @@ body {
    TUNER TAB
 ═══════════════════════════════════════════════════════ */
 
-/* ── Note display (extends bpm-section card) ── */
-.tuner-display {
-  align-items: center;    /* bpm-section is column; centre everything */
-  gap: 6px;
-}
-
-.tuner-note-wrap {
+.tuner-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
-  min-width: 8rem;   /* prevents layout jitter when note name width changes */
+  gap: 6px;
+  padding: 14px 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.3s;
 }
+.tuner-hero.locked { border-color: rgba(80, 200, 120, 0.55); }
 
+.tuner-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.tuner-instr {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.tuner-instr button,
+.tuner-ref button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tuner-instr button.active { background: var(--bg-card-raised); color: var(--text-primary); }
+.tuner-ref {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+.tuner-ref button { width: 32px; padding: 0; font-size: 1rem; background: var(--bg-card-raised); }
+.tuner-ref-val { min-width: 62px; text-align: center; }
+.tuner-ref-val b { color: var(--text-primary); }
+
+.tuner-note-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-height: calc(var(--fs-display) * 1.05);
+}
 .tuner-note {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-bold);
+  font-size: calc(var(--fs-display) * 1.15);
+  font-weight: var(--fw-black);
   line-height: 1;
   letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
-  min-width: 2ch;
+  min-width: 1ch;
   text-align: center;
   transition: color 0.3s;
 }
-
 .tuner-octave {
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: var(--text-secondary);
-  letter-spacing: 2px;
-  transition: color 0.3s;
-  min-height: 1.2em;
-}
-
-.tuner-freq {
-  font-size: 0.75rem;
+  font-size: 1.6rem;
   font-weight: 600;
-  letter-spacing: 2.5px;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  min-width: 0.8em;
+  transition: color 0.3s;
+}
+.tuner-freq {
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
   font-variant-numeric: tabular-nums;
+  min-height: 1.3em;
 }
+.tuner-hero.locked .tuner-note,
+.tuner-hero.locked .tuner-octave { color: var(--color-success); }
 
-/* locked state — note + octave go green */
-.tuner-display.locked .tuner-note,
-.tuner-display.locked .tuner-octave { color: var(--color-success); }
-
-/* ── Tuning bar card ── */
-.tuner-bar-card { gap: 12px; }
-
-/* Gauge wrapper: position:relative so absolute children anchor here */
-.tuner-gauge {
-  position: relative;
-  width: 100%;
-  padding-top: 30px;   /* headroom for the floating cents label */
-}
-
-/* Cents label — floats above the needle; JS sets left% */
+/* Gauge: quiet track, narrow green target zone, one bright needle */
+.tuner-gauge { position: relative; width: 100%; padding-top: 28px; margin-top: 4px; }
 .tuner-cents {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-secondary);
   white-space: nowrap;
   pointer-events: none;
-  transition: color 0.3s;
   font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
 }
 .tuner-cents.locked { color: var(--color-success); }
-
-/* Track row: relative container for track + center-mark + needle */
-.tuner-track-wrap {
-  position: relative;
-  height: 44px;
-  display: flex;
-  align-items: center;
-}
-
-/* Gradient track — symmetric red→yellow→green→yellow→red */
+.tuner-track-wrap { position: relative; height: 40px; display: flex; align-items: center; }
 .tuner-track {
   position: absolute;
-  inset: 0;
-  height: 16px;
+  left: 0; right: 0;
   top: 50%;
+  height: 10px;
   transform: translateY(-50%);
-  border-radius: 8px;
-  background: linear-gradient(
-    90deg,
-    #e05050  0%,
-    #f09010 22%,
-    #f0d020 38%,
-    #50c878 48%,
-    #50c878 52%,
-    #f0d020 62%,
-    #f09010 78%,
-    #e05050 100%
-  );
-  transition: box-shadow 0.4s;
+  border-radius: 5px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(255,255,255,0.12) calc(10% - 1px) 10%),
+    var(--bg-card-raised);
 }
-
-/* Centre reference tick */
-.tuner-track-center {
+.tuner-zone {
   position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: rgba(255, 255, 255, 0.5);
-  transform: translateX(-50%);
-  border-radius: 1px;
-  z-index: 1;
-  pointer-events: none;
+  left: 47%;
+  width: 6%;
+  top: -3px;
+  bottom: -3px;
+  border-radius: 4px;
+  background: rgba(80, 200, 120, 0.35);
+  border: 1px solid rgba(80, 200, 120, 0.7);
+  transition: box-shadow 0.3s, background 0.3s;
 }
-
-/* Needle — wide indicator; JS sets left% via spring physics */
+.tuner-gauge.locked .tuner-zone { background: rgba(80, 200, 120, 0.6); box-shadow: 0 0 18px rgba(80,200,120,0.6); }
 .tuner-needle {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 2px;
+  bottom: 2px;
   left: 50%;
-  width: 6px;
+  width: 5px;
   transform: translateX(-50%);
   border-radius: 3px;
-  background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.25), 0 2px 10px rgba(0,0,0,0.5);
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
   z-index: 2;
   will-change: left;
   transition: background 0.3s, box-shadow 0.3s;
 }
-
-/* Scale labels below track */
+.tuner-needle.locked { background: var(--color-success); box-shadow: 0 0 16px rgba(80,200,120,0.75); }
 .tuner-scale {
   display: flex;
-  padding: 8px 0 0;
-  font-size: 0.62rem;
+  justify-content: space-between;
+  padding-top: 6px;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.tuner-scale span {
-  flex: 1;
-  text-align: center;
-}
-.tuner-scale span:first-child { text-align: left; }
-.tuner-scale span:last-child  { text-align: right; }
-
-/* Locked visual state */
-.tuner-gauge.locked .tuner-track {
-  box-shadow: 0 0 22px rgba(80, 200, 120, 0.5);
-}
-.tuner-needle.locked {
-  background: var(--color-success);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.2), 0 0 18px rgba(80,200,120,0.75);
 }
 
-/* ── Lock badge ── */
 .tuner-lock {
-  text-align: center;
   color: var(--color-success);
   font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
+  letter-spacing: 2px;
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 0.3s, transform 0.3s;
-  min-height: 18px;
+  min-height: 1.2em;
 }
-.tuner-lock.visible {
-  opacity: 1;
-  transform: translateY(0);
+.tuner-lock.visible { opacity: 1; transform: translateY(0); }
+
+/* Open-string row — the string being tuned lights up */
+.tuner-strings {
+  width: 100%;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+.tuner-string {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  min-height: 40px;
+  align-content: center;
+  padding-top: 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-raised);
+  color: var(--text-secondary);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.tuner-string b { font-size: 1rem; font-weight: 700; }
+.tuner-string small { font-size: 0.65rem; opacity: 0.7; }
+.tuner-string.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.tuner-hero.locked .tuner-string.active {
+  border-color: var(--color-success);
+  background: var(--color-success-dim);
+  color: var(--color-success);
+}
+
+/* Mic input level */
+.tuner-level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+.tuner-level svg {
+  width: 18px; height: 18px; flex-shrink: 0;
+  fill: none; stroke: var(--text-secondary); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tuner-level-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-card-raised);
+  overflow: hidden;
+}
+.tuner-level-fill {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--text-muted), var(--accent) 70%, var(--beat1-color));
+  will-change: transform;
 }
 
 .tuner-status {
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   line-height: 1.4;
   color: var(--text-secondary);
   padding: 0 12px;
   min-height: 1.2em;
 }
-.tuner-status.error {
-  color: var(--color-danger);
-  font-weight: 600;
-}
+.tuner-status.error { color: var(--color-danger); font-weight: 600; }
 
 @media (max-width: 420px) {
-  /* Shrink the shared hero numeral together so all tabs stay in lockstep */
   :root { --fs-display: 4.25rem; }
-  .tuner-octave { font-size: 1.4rem; }
+  .tuner-octave { font-size: 1.3rem; }
 }
+
 
 /* ══════════════════════════════
    PRACTICE LOG TAB
 ══════════════════════════════ */
 
-/* Scope to .active — a bare #tab-log rule outranks `.tab-panel{display:none}`
-   (ID > class) and would keep the Log visible under every other tab. */
-#tab-log.active {
-  padding: 1rem 1rem 2rem;
+/* Scope to .active — a bare #tab-log rule outranks `.tab-panel{display:none}` */
+#tab-log.active { display: flex; flex-direction: column; gap: 12px; }
+
+.log-goal-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.log-ring-wrap { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+.log-ring { width: 100%; height: 100%; display: block; }
+.log-ring-label {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  align-items: center;
+  justify-content: center;
 }
+.log-ring-val { font-size: 1.9rem; font-weight: var(--fw-black); line-height: 1; }
+.log-ring-unit { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+.log-goal-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.log-goal-title { font-size: 1.05rem; font-weight: 700; }
+.log-goal-sub { font-size: 0.82rem; color: var(--text-secondary); }
+.log-goal-picker { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.log-goal-opt {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-card-raised);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.log-goal-opt.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
 
 .log-stats-row {
   display: flex;
   justify-content: space-around;
   background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem 0.5rem;
+  padding: 14px 8px;
 }
+.log-stat { text-align: center; }
+.log-stat-val { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+.log-stat-label { font-size: 0.74rem; color: var(--text-secondary); margin-top: 4px; }
 
-.log-stat {
-  text-align: center;
-}
-
-.log-stat-val {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--accent);
-  line-height: 1;
-}
-
-.log-stat-label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 4px;
-}
-
-.log-chart-wrap {
+.log-chart-wrap,
+.log-sessions-wrap {
   background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: 14px 16px;
 }
-
-.log-chart-wrap svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
+.log-chart-wrap svg { width: 100%; height: auto; display: block; }
 
 .log-section-title {
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-bottom: 0.75rem;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
 .log-clear-btn {
+  min-height: 30px;
   background: none;
-  border: 1px solid #444;
+  border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 0.65rem;
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-size: 0.72rem;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  text-transform: none;
-  letter-spacing: 0;
 }
-
-.log-clear-btn:hover {
-  color: #e05555;
-  border-color: #e05555;
-}
-
-.log-sessions-wrap {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-}
+.log-clear-btn:hover { color: var(--color-danger); border-color: var(--color-danger); }
 
 .log-session-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.55rem 0;
+  gap: 12px;
+  padding: 9px 0;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-
-.log-session-row:last-child {
-  border-bottom: none;
-}
-
+.log-session-row:last-child { border-bottom: none; }
 .log-session-icon {
-  font-size: 1.2rem;
-  width: 1.5rem;
-  text-align: center;
-  flex-shrink: 0;
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 9px;
+  background: var(--bg-card-raised);
+  color: var(--accent);
+  font-size: 1rem;
 }
-
-.log-session-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
+.log-session-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .log-session-module {
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 600;
-  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-transform: capitalize;
 }
+.log-session-time { font-size: 0.74rem; color: var(--text-secondary); }
+.log-empty { text-align: center; color: var(--text-secondary); font-size: 0.86rem; padding: 18px 8px; }
 
-.log-session-time {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-}
-
-.log-empty {
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  padding: 1.5rem 0;
-}
+/* v2 fine-tuning */
+#note-val { font-size: 1.35rem; line-height: 1; }
+.ghost-inline .control-label { text-transform: none; letter-spacing: 0; font-size: 0.84rem; font-weight: 600; color: var(--text-secondary); }
+.log-goal-picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.log-goal-opt { padding: 0 4px; }

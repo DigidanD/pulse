@@ -61,7 +61,8 @@ style.css         # design tokens + all styling
 metronome.js      # lookahead scheduler, synthesis, ramp/gap/bar-break/timer, save/load, shared AudioContext
 rhythm.js         # pattern engine, feel, fills, humanization, acoustic samples + synth fallback
 tuner.js          # YIN pitch detection, median filter, spring needle, mic handling
-practice-log.js   # poll-based session capture, stats, SVG chart
+practice-log.js   # poll-based session capture (crash-safe checkpoint), daily goal ring, stats, SVG chart
+sw.js             # service worker — offline app shell + cached fonts/drum samples
 ```
 
 - **Shared audio bus:** `metronome.js` owns the `AudioContext` and `masterGain`, exposed via `window.getSharedAudioCtx` / `window.getSharedDest`. Every module routes through it, so the Master Volume governs the whole app.
@@ -90,6 +91,8 @@ python -m http.server 8766
 - Design system: Inter + type scale, unified hero numeral, glow discipline, 44px touch targets, sticky transport, Rhythm reading-order.
 - **Branding rollout** (per `BRAND.md`): PULSE wordmark + Pulse Mark in header; new favicon; tab `Rhythm Buddy → Groove`; fake "Pro" badges removed; `<title>` updated; Log voice/microcopy (Groove module name, empty-state copy).
 - **Logo asset package:** SVG masters, favicon, PWA icons (192/512), apple-touch-icon, `manifest.json`.
+- **Sprint fixes + Layout v2 (Oct 2026):** tuner hold/lock fix, tuner instrument presets (guitar / 7-string / bass), A4 calibration, string row + mic level, auto-listen when mic already allowed; worker-clocked schedulers, latency-compensated visuals, wake lock that survives backgrounding; offline service worker, autosave, safe-area + reduced-motion; compact header, one-screen metronome, thin Groove transport, single master volume, Log daily goal.
+- **Open item:** drum samples still load from the JavaScript30 repo via jsDelivr — license unverified; replace with our own CC0 kit before any commercial use.
 - **Deployed:** dedicated repo `DigidanD/pulse`, GitHub Pages from `main` (`.nojekyll`), live at https://digidand.github.io/pulse/.
 
 **Deferred (minor)**

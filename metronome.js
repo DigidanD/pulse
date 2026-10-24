@@ -95,15 +95,61 @@
     }
   }
 
-  async function requestWakeLock() {
-    if ('wakeLock' in navigator) {
-      try { wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+  // Scheduler clock. Main-thread setInterval is throttled hard when the tab
+  // is hidden or the screen dims, which starves the lookahead scheduler and
+  // makes the click stutter. A tiny Worker keeps ticking reliably; if a
+  // Worker can't be created, fall back to setInterval.
+  const TICKER_SRC = 'let t;onmessage=function(e){clearInterval(t);if(e.data>0)t=setInterval(function(){postMessage(0)},e.data)}';
+  let tickerUrl = null;
+
+  function createTicker(fn, ms) {
+    let fallbackId = null;
+    let worker = null;
+    const useFallback = () => {
+      if (fallbackId === null) fallbackId = setInterval(fn, ms);
+      if (worker) { worker.terminate(); worker = null; }
+    };
+    try {
+      tickerUrl = tickerUrl || URL.createObjectURL(new Blob([TICKER_SRC], { type: 'text/javascript' }));
+      worker = new Worker(tickerUrl);
+      worker.onmessage = fn;
+      worker.onerror = useFallback;
+      worker.postMessage(ms);
+    } catch (_) {
+      useFallback();
     }
+    return {
+      stop() {
+        if (worker) { worker.terminate(); worker = null; }
+        if (fallbackId !== null) { clearInterval(fallbackId); fallbackId = null; }
+      },
+    };
+  }
+
+  // Shared screen wake lock for every module that plays (metronome + groove).
+  // The browser silently drops the lock whenever the page is hidden, so it is
+  // re-acquired on return while anything is still playing.
+  function anyPlaying() {
+    return state.isPlaying || !!window.rhythm?.isPlaying() || !!window.tuner?.isActive();
+  }
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+    if (wakeLock && !wakeLock.released) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (_) { wakeLock = null; }
   }
 
   function releaseWakeLock() {
+    if (anyPlaying()) return;   // another module still needs the screen on
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && anyPlaying()) requestWakeLock();
+  });
 
   function createNoiseBuffer(ctx) {
     const len  = Math.ceil(ctx.sampleRate * 0.5);
@@ -111,6 +157,15 @@
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     return buf;
+  }
+
+  // Seconds between scheduling a sound and it reaching the speaker.
+  // outputLatency (Chrome/Firefox) includes the device + Bluetooth path;
+  // baseLatency is the fallback (Safari). Capped so a bogus value can't
+  // freeze the visuals.
+  function getOutputLatency(ctx) {
+    const l = (ctx && (ctx.outputLatency || ctx.baseLatency)) || 0;
+    return Math.min(Math.max(l, 0), 0.5);
   }
 
   function getDest() {
@@ -315,7 +370,9 @@
     if (state.rampEnabled) initRamp();
 
     requestWakeLock();
-    state.timerID = setInterval(scheduler, SCHEDULER_INTERVAL);
+    if (state.timerID) state.timerID.stop();
+    state.timerID = createTicker(scheduler, SCHEDULER_INTERVAL);
+    scheduler();
 
     if (!state.rafRunning) {
       state.rafRunning = true;
@@ -329,7 +386,7 @@
     state.countInRemaining = 0;
     state.barMuted         = false;
     releaseWakeLock();
-    clearInterval(state.timerID);
+    if (state.timerID) state.timerID.stop();
     state.timerID          = null;
     state.pendingFlashes   = [];
     beatDots.forEach(d => d.classList.remove('active', 'accent'));
@@ -347,7 +404,9 @@
   ───────────────────────────────────────────── */
   function rafLoop() {
     if (!audioCtx) { state.rafRunning = false; return; }
-    const now = audioCtx.currentTime;
+    // Fire visuals when the click is actually HEARD, not when it leaves the
+    // audio graph: subtract the device output latency (large on Bluetooth).
+    const now = audioCtx.currentTime - getOutputLatency(audioCtx);
 
     state.pendingFlashes = state.pendingFlashes.filter(flash => {
       if (flash.time <= now) {
@@ -417,10 +476,16 @@
     state.accentPattern.length = state.timeSigUpper;
 
     for (let i = 0; i < state.timeSigUpper; i++) {
-      const dot = document.createElement('div');
+      // Real buttons (keyboard + screen reader reachable), numbered so the
+      // bar reads at a glance. Tap cycles normal → accent → silent.
+      const dot = document.createElement('button');
+      dot.type = 'button';
       dot.className = 'beat-dot beat-dot--' + state.accentPattern[i];
       dot.dataset.beat = i;
-      dot.title = 'Beat ' + (i + 1) + ' — click to change accent';
+      dot.textContent = String(i + 1);
+      const labelFor = st => 'Beat ' + (i + 1) + ': ' + st + '. Tap to change.';
+      dot.setAttribute('aria-label', labelFor(state.accentPattern[i]));
+      dot.title = 'Tap to cycle: normal → accent → silent';
 
       dot.addEventListener('click', () => {
         const cycle = ['normal', 'accent', 'silent'];
@@ -430,6 +495,7 @@
         dot.className = 'beat-dot beat-dot--' + next +
           (dot.classList.contains('active') ? ' active' : '') +
           (dot.classList.contains('accent') ? ' accent' : '');
+        dot.setAttribute('aria-label', labelFor(next));
       });
 
       beatVisualizer.appendChild(dot);
@@ -571,8 +637,13 @@
     const badge = document.getElementById('play-timer-badge');
     if (badge) badge.style.display = 'flex';
     clearInterval(state.timerIntervalID);
+    // Count against the wall clock, not interval ticks: browsers throttle
+    // timers when the screen is off, so tick-counting ran slow.
+    const endAt = Date.now() + state.timerRemaining * 1000;
     state.timerIntervalID = setInterval(() => {
-      state.timerRemaining--;
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      if (remaining === state.timerRemaining && remaining > 0) return;
+      state.timerRemaining = remaining;
       updateTimerDisplay();
       if (state.timerRemaining <= 0) {
         clearInterval(state.timerIntervalID);
@@ -598,7 +669,7 @@
         const badge = document.getElementById('play-timer-badge');
         if (badge) badge.style.display = 'none';
       }
-    }, 1000);
+    }, 250);
     updateTimerBtn(true);
   }
 
@@ -638,7 +709,7 @@
      setBpm — single source of truth
   ───────────────────────────────────────────── */
   function setBpm(newBpm) {
-    const clamped = Math.max(40, Math.min(240, Math.round(newBpm)));
+    const clamped = Math.max(30, Math.min(240, Math.round(newBpm)));
     state.bpm     = clamped;
     updateBpmUI(clamped);
     document.dispatchEvent(new CustomEvent('bpm-change', { detail: { bpm: clamped } }));
@@ -648,7 +719,7 @@
   function updateBpmUI(bpm) {
     bpmInput.value  = bpm;
     bpmSlider.value = bpm;
-    const pct = ((bpm - 40) / 200 * 100).toFixed(1) + '%';
+    const pct = ((bpm - 30) / 210 * 100).toFixed(1) + "%";
     bpmSlider.style.setProperty('--slider-pct', pct);
 
     const beatMs = 60000 / bpm;
@@ -792,16 +863,28 @@
   }
 
   // Master Volume
+  // One volume for the whole app: the Metronome and Groove tabs each show a
+  // slider, both bound to the same master bus and kept in sync.
   const masterVolEl = document.getElementById('master-volume');
-  if (masterVolEl) {
-    masterVolEl.addEventListener('input', () => {
-      state.masterVolume = Number(masterVolEl.value) / 100;
-      if (masterGain) masterGain.gain.value = state.masterVolume;
-      masterVolEl.style.setProperty('--slider-pct', masterVolEl.value + '%');
-      const lbl = document.getElementById('master-volume-label');
-      if (lbl) lbl.textContent = masterVolEl.value + '%';
+  const VOLUME_SLIDERS = [
+    ['master-volume', 'master-volume-label'],
+    ['rb-volume',     'rb-volume-label'],
+  ];
+  function setMasterVolume(pct) {
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    state.masterVolume = pct / 100;
+    if (masterGain) masterGain.gain.value = state.masterVolume;
+    VOLUME_SLIDERS.forEach(([sid, lid]) => {
+      const sl = document.getElementById(sid);
+      if (sl) { sl.value = pct; sl.style.setProperty('--slider-pct', pct + '%'); }
+      const lbl = document.getElementById(lid);
+      if (lbl) lbl.textContent = pct + '%';
     });
   }
+  VOLUME_SLIDERS.forEach(([sid]) => {
+    const sl = document.getElementById(sid);
+    if (sl) sl.addEventListener('input', () => setMasterVolume(Number(sl.value)));
+  });
 
   // ── Compact Dropdown Selectors (Note / Time Sig / Sound / Accent) ──────
 
@@ -905,7 +988,7 @@
   });
 
   // Accent preset
-  const ACCENT_LABELS = { beat1: '1', '1and3': '1+3', '2and4': '2+4', all: 'All', off: 'Off' };
+  const ACCENT_LABELS = { beat1: 'Beat 1', '1and3': '1 & 3', '2and4': '2 & 4', all: 'All', off: 'Off' };
 
   function applyAccentPreset(preset) {
     const n = state.timeSigUpper;
@@ -970,12 +1053,12 @@
   );
 
   rampStartInput.addEventListener('change', () => {
-    state.rampStartBpm = Math.max(40, Math.min(240, Number(rampStartInput.value)));
+    state.rampStartBpm = Math.max(30, Math.min(240, Number(rampStartInput.value)));
     rampStartInput.value = state.rampStartBpm;
     validateRamp();
   });
   rampEndInput.addEventListener('change', () => {
-    state.rampEndBpm = Math.max(40, Math.min(240, Number(rampEndInput.value)));
+    state.rampEndBpm = Math.max(30, Math.min(240, Number(rampEndInput.value)));
     rampEndInput.value = state.rampEndBpm;
     validateRamp();
   });
@@ -1077,10 +1160,18 @@
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
               t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    // Tempo shortcuts only make sense on the tabs that play tempo. On Tuner a
+    // stray Space used to start the metronome — which leaks into the mic.
+    if (activeTab === 'tuner') {
+      if (e.code === 'Space') { e.preventDefault(); document.getElementById('tuner-start-btn')?.click(); }
+      return;
+    }
+    if (activeTab !== 'metronome' && activeTab !== 'rhythm') return;
     switch (e.code) {
       case 'Space': {
         e.preventDefault();
-        const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
         if (activeTab === 'rhythm') {
           document.getElementById('rb-play-btn')?.click();
         } else {
@@ -1144,7 +1235,7 @@
   ───────────────────────────────────────────── */
   const SETTINGS_KEY = 'metronome-settings';
 
-  function saveSettings() {
+  function saveSettings(silent) {
     const data = {
       bpm:               state.bpm,
       timeSigUpper:      state.timeSigUpper,
@@ -1171,6 +1262,7 @@
       activeTab:         document.querySelector('.tab-btn.active')?.dataset.tab || 'metronome',
     };
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(data)); } catch (_) {}
+    if (silent === true) return;
     // Toast
     const toast = document.getElementById('save-toast');
     if (toast) {
@@ -1281,7 +1373,29 @@
   }
 
   const saveBtn = document.getElementById('save-btn');
-  if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+  if (saveBtn) saveBtn.addEventListener('click', () => saveSettings(false));
+
+  // Autosave: settings persist on their own (the Save button stays as an
+  // explicit "snapshot" with a confirmation toast). Suspended while saved
+  // settings are being restored, so a half-restored state is never written.
+  let autosaveReady = false;
+  let autosaveT = null;
+  function scheduleAutosave() {
+    if (!autosaveReady) return;
+    clearTimeout(autosaveT);
+    autosaveT = setTimeout(() => saveSettings(true), 600);
+  }
+  ['click', 'input', 'change'].forEach(type => {
+    document.addEventListener(type, scheduleAutosave, true);
+  });
+  window.addEventListener('pagehide', () => { if (autosaveReady) saveSettings(true); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && autosaveReady) saveSettings(true);
+  });
+
+  function loadSettingsAndArm() {
+    try { loadSettings(); } finally { autosaveReady = true; }
+  }
 
   /* ─────────────────────────────────────────────
      Init
@@ -1294,12 +1408,15 @@
   // Shared master output bus — lets rhythm.js route through the same masterGain
   // so the Master Volume slider governs every module (not just the metronome).
   window.getSharedDest = getDest;
+  window.createPulseTicker = createTicker;
+  window.getOutputLatency = getOutputLatency;
+  window.pulseWakeLock = { acquire: requestWakeLock, release: releaseWakeLock };
   window.metronome = {
     setBpm:       setBpm,
     tap:          onTapTempo,
     getBpm:       () => state.bpm,
     isPlaying:    () => state.isPlaying,
-    loadSettings: loadSettings,
+    loadSettings: loadSettingsAndArm,
   };
 
 })();
